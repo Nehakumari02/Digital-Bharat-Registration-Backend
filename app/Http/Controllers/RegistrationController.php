@@ -3,42 +3,70 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Registration; // This links to your Database Model
+use App\Models\Registration;
+use Illuminate\Support\Facades\Hash;
 
 class RegistrationController extends Controller
 {
     public function register(Request $request)
     {
-        // 1. Validation (Make sure data is actually there)
+        // 1. Core Validation
         $request->validate([
             'name' => 'required|string',
-            'mobile' => 'required|string',
+            'mobile' => 'required|string|unique:registrations,mobile',
+            'email' => 'required|email|unique:registrations,email', // Validates email format and uniqueness
+            'password' => 'required|string|min:6',
             'category' => 'required|string',
+            'pincode' => 'required|string',
+            'city' => 'required|string',
+            'state' => 'required|string',
         ]);
 
-        // 2. Create the User in the Database
-        $user = Registration::create([
-            'name' => $request->name,
-            'mobile' => $request->mobile,
-            'category' => $request->category,
-            'state' => $request->state, // Add this
-            'city' => $request->city,   // Add this
-        ]);
+        // 2. Automated Save
+        // Because of our $fillable array in the Model, this handles all dynamic fields
+        try {
 
-        // 3. Send a "Receipt" back to Flutter
-        return response()->json([
-            'message' => 'Registration Successful!',
-            'user' => $user
-        ], 201); // 201 means "Created"
+            // 2. Prepare Data
+            $data = $request->all();
+
+            // 3. Encrypt the password so it isn't saved as plain text
+            $data['password'] = Hash::make($request->password);
+
+            // 4. Automated Save
+            $user = Registration::create($data);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Registration Successful',
+                'user' => $user
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function login(Request $request)
     {
-        $user = Registration::where('mobile', $request->mobile)->first();
+        // Search by mobile or email
+        $user = Registration::where('mobile', $request->mobile)
+            ->orWhere('email', $request->mobile)
+            ->first();
 
-        if ($user) {
-            return response()->json(['message' => 'Login Success', 'user' => $user], 200);
+        // Check if user exists and verify the encrypted password
+        if ($user && Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'status' => 'success',
+                'user' => $user
+            ], status: 200);
         }
-        return response()->json(['message' => 'User not found'], 404);
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Invalid credentials'
+        ], 401);
     }
 }

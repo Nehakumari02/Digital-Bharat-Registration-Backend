@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\LoanController; // Make sure to import your controller
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -16,3 +18,8 @@ Route::get('/user', function (Request $request) {
 Route::post('/register', [RegistrationController::class, 'register']);
 
 Route::post('/login', [RegistrationController::class, 'login']);
+Route::post('/save-service', [ServiceController::class, 'saveData']);
+
+
+
+Route::get('/leads', [LoanController::class, 'getAllLeads']);
